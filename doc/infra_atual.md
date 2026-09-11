@@ -124,37 +124,36 @@ Fluxo:
 
 
 ## Pipelines
+**AVA (Moodle)**
 
-**AVA**
-
-* **Imagem Docker Base / Construção:** Constrói a imagem principal utilizando um Dockerfile padrão na raiz (`docker-build`), com suporte a variáveis de autenticação (`GIT_USER`, `GIT_KEY`) e varredura de contêineres (`container_scanning`).
+* **Processo:** Realiza o build da imagem principal do Moodle na raiz do repositório com autenticação via credenciais de build e varredura automatizada de vulnerabilidades.
 
 
-* **Comportamento e Deploys:** Possui múltiplos gatilhos de deploy voltados para homologações estaduais e produção (`deploy-to-hmg`, `deploy-to-prod`, `deploy-to-hmg-estados`, `deploy-to-prod-ac`, `deploy-to-prod-to`) utilizando webhooks específicos do Portainer para a aplicação e para o serviço de cron (`$GITLAB_PORTAINER_WEBHOOK` e `$GITLAB_PORTAINER_WEBHOOK_CRON`).
+* **Comportamento e Deploys Interestaduais:** É o projeto com a esteira mais complexa devido à distribuição para diferentes localidades. Possui regras direcionadas para branches específicas de homologação e produção estaduais, disparando webhooks do Portainer para atualizar a aplicação e o serviço de cron (`AVA-Cron`) em ambientes como o geral e instâncias estaduais específicas (a exemplo de Acre e Tocantins através da branch `prod-estados`).
 
 
 
 **Portal**
 
-* **Imagem Docker Base / Construção:** Utiliza imagens base Node.js (com tags configuráveis como `20.12.2` ou `20.3`) através de arquivos de build específicos como `Dockerfile.deploy`.
+* **Processo:** Constrói a aplicação frontend em Node.js utilizando o `Dockerfile.deploy` e valida a qualidade do código com o ecossistema do SonarQube.
 
 
-* **Comportamento e Deploys:** Executa estágios de validação, testes com SonarQube e SAST, integrando-se opcionalmente com atualizações via Helm Charts e Agentes do Kubernetes (`gitlab-agent-for-kubernetes`) ou webhooks tradicionais para os ambientes de homologação e produção (`deploy-to-hmg`, `deploy-to-prod`).
-
-
-
-**Observatorio**
-
-* **Imagem Docker Base / Construção:** Configurado com stacks de frontend/Node.js integradas a templates de qualidade de código do NEES e escaneamento de vulnerabilidades (`container_scanning`).
-
-
-* **Comportamento e Deploys:** Aciona pipelines direcionadas para branches de liberação (`develop_release` ou `homologacao`) e branch padrão (`main`), disparando webhooks do Portainer para atualizar o serviço correspondente no ambiente de destino.
+* **Comportamento e Deploys:** O fluxo é acionado em branches de desenvolvimento e feature, realizando o deploy automatizado via webhook para homologação ou produção (`main`) diretamente na VM gerenciada pelo Portainer.
 
 
 
-**Administrativo**
+**Observatório (Frontend & Backend)**
 
-* **Imagem Docker Base / Construção:** Arquitetura altamente modular dividida em múltiplos builds utilizando imagens separadas para Django (`docker-build-django` com `PYTHON_TAG_DOCKER_BUILD`) e Nginx (`docker-build-nginx` com `NGINX_TAG`).
+* **Processo:** Os ambientes de interface e servidor são mantidos em repositórios e pipelines separados. O front gerencia pacotes Node.js enquanto o back empacota a estrutura em Python.
 
 
-* **Comportamento e Deploys:** Executa uma esteira rigorosa de validações de código e estilo (`flake8`, `ruff`, `prettier`, `django-check`, `django-migrations`), testes automatizados com banco PostgreSQL e Redis (`pytest` / `test-django-app`), e realiza o deploy segmentado chamando webhooks independentes para cada componente (como `$GITLAB_PORTAINER_WEBHOOK_DJANGO` e `$GITLAB_PORTAINER_WEBHOOK_NGINX`).
+* **Comportamento e Deploys:** As esteiras monitoram branches dedicadas de liberação (`develop_release` ou `homologacao`) e a branch padrão, acionando atualizações pontuais via Portainer para refletir as melhorias visuais e de API de forma isolada.
+
+
+
+**Administrativo (Frontend & Backend)**
+
+* **Processo:** Dividido em pipelines e builds desacoplados para o backend Django e para o proxy Nginx. Antes de gerar as imagens, executa validações rigorosas de código (`flake8`, `ruff`), checagem de migrações e suítes de testes com banco de dados e Redis.
+
+
+* **Comportamento e Deploys:** O pipeline gerencia ambientes de desenvolvimento, homologação, treinamento e produção de forma segmentada. Conforme o commit na branch correspondente (`dev`, `hmg`, `staging` ou `main`), a esteira dispara requisições independentes para os webhooks do Portainer de cada componente (`$GITLAB_PORTAINER_WEBHOOK_DJANGO`, `$GITLAB_PORTAINER_WEBHOOK_NGINX`), permitindo atualizar o painel administrativo de forma cirúrgica na infraestrutura.
